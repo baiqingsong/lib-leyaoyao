@@ -1,0 +1,2 @@
+-keep class com.dawn.lyy.** { *; }
+-keepclassmembers class com.dawn.lyy.** { *; }
