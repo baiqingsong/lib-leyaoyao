@@ -1,4 +1,4 @@
-﻿package com.dawn.lyy;
+package com.dawn.lyy;
 
 import android.os.Handler;
 import android.os.HandlerThread;
