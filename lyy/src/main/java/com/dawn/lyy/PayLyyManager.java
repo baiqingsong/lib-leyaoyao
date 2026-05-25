@@ -1,11 +1,10 @@
-package com.dawn.lyy;
+﻿package com.dawn.lyy;
 
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.text.TextUtils;
-import android.util.Log;
 
 import com.dawn.socket.LSocketUtil;
 import com.google.gson.Gson;
@@ -111,10 +110,10 @@ public class PayLyyManager {
      */
     public void start() {
         if (isDestroyed.get()) {
-            Log.w(TAG, "Manager已销毁，请重新创建实例");
+            PaymentLog.w(TAG, "Manager已销毁，请重新创建实例");
             return;
         }
-        Log.i(TAG, "支付管理器启动");
+        PaymentLog.i(TAG, "支付管理器启动");
         manualDestroy.set(false);
         reconnectCount.set(0);
         payConnect();
@@ -126,7 +125,7 @@ public class PayLyyManager {
     public void destroy() {
         if (isDestroyed.getAndSet(true)) return;
         manualDestroy.set(true);
-        Log.i(TAG, "支付管理器销毁");
+        PaymentLog.i(TAG, "支付管理器销毁");
         if (workHandler != null) {
             workHandler.removeCallbacksAndMessages(null);
         }
@@ -162,11 +161,11 @@ public class PayLyyManager {
      */
     public void requestPayQrCode(String key, int price) {
         if (isDestroyed.get()) return;
-        Log.i(TAG, "请求支付二维码: key=" + key + " price=" + price);
+        PaymentLog.i(TAG, "请求支付二维码: key=" + key + " price=" + price);
         if (isLogin.get()) {
             sendLYYCommand(buildPayQrCode(key, price));
         } else {
-            Log.w(TAG, "未登录，无法获取支付二维码");
+            PaymentLog.w(TAG, "未登录，无法获取支付二维码");
             notifyListener(l -> l.getPayQrCode(key, null));
         }
     }
@@ -180,10 +179,10 @@ public class PayLyyManager {
     public void sendGameResult(String key, boolean status) {
         if (isDestroyed.get()) return;
         if (!isLogin.get()) {
-            Log.w(TAG, "未登录，无法发送游戏结果");
+            PaymentLog.w(TAG, "未登录，无法发送游戏结果");
             return;
         }
-        Log.i(TAG, "发送游戏结果: key=" + key + " status=" + status);
+        PaymentLog.i(TAG, "发送游戏结果: key=" + key + " status=" + status);
         sendLYYCommand(buildGameResult(key, status));
         sendLYYCommand(buildRemainder(key));
     }
@@ -194,7 +193,7 @@ public class PayLyyManager {
     public void updateSettings() {
         if (isDestroyed.get()) return;
         if (!isLogin.get()) {
-            Log.w(TAG, "未登录，无法更新设置");
+            PaymentLog.w(TAG, "未登录，无法更新设置");
             return;
         }
         sendLYYCommand(buildParamSetting());
@@ -209,10 +208,10 @@ public class PayLyyManager {
     public void refund(String key, String pay) {
         if (isDestroyed.get()) return;
         if (!isLogin.get()) {
-            Log.w(TAG, "未登录，无法执行退款");
+            PaymentLog.w(TAG, "未登录，无法执行退款");
             return;
         }
-        Log.i(TAG, "发起退款: key=" + key + " pay=" + pay);
+        PaymentLog.i(TAG, "发起退款: key=" + key + " pay=" + pay);
         sendLYYCommand(buildRefundResult(key, pay));
     }
 
@@ -246,11 +245,11 @@ public class PayLyyManager {
             if (manager == null || manager.isDestroyed.get()) return;
             switch (msg.what) {
                 case MSG_CONNECT_TIMEOUT:
-                    Log.w(TAG, "连接超时");
+                    PaymentLog.w(TAG, "连接超时");
                     manager.handleConnectionLost();
                     break;
                 case MSG_SETTING_TIMEOUT:
-                    Log.w(TAG, "登录初始化超时");
+                    PaymentLog.w(TAG, "登录初始化超时");
                     manager.handleConnectionLost();
                     break;
                 case MSG_HEARTBEAT:
@@ -271,12 +270,12 @@ public class PayLyyManager {
     private void payConnect() {
         if (isDestroyed.get() || manualDestroy.get()) return;
         disconnectSocket();
-        Log.i(TAG, "发起Socket连接: " + config.getPayUrl() + ":" + config.getPayPort());
+        PaymentLog.i(TAG, "发起Socket连接: " + config.getPayUrl() + ":" + config.getPayPort());
         socketUtil = new LSocketUtil();
         socketUtil.connect(config.getPayUrl(), config.getPayPort(), new LSocketUtil.SocketListener() {
             @Override
             public void connectSuccess() {
-                Log.i(TAG, "Socket连接成功");
+                PaymentLog.i(TAG, "Socket连接成功");
                 isConnected.set(true);
                 heartFailNum.set(0);
                 reconnectCount.set(0);
@@ -291,7 +290,7 @@ public class PayLyyManager {
 
             @Override
             public void connectFail() {
-                Log.e(TAG, "Socket连接失败");
+                PaymentLog.e(TAG, "Socket连接失败");
                 isConnected.set(false);
                 isLogin.set(false);
                 handleConnectionLost();
@@ -307,7 +306,7 @@ public class PayLyyManager {
             try {
                 socketUtil.disConnect();
             } catch (Exception e) {
-                Log.w(TAG, "断开Socket异常", e);
+                PaymentLog.w(TAG, "断开Socket异常", e);
             }
             socketUtil = null;
         }
@@ -338,7 +337,7 @@ public class PayLyyManager {
 
         int count = reconnectCount.incrementAndGet();
         if (count > MAX_RECONNECT_ATTEMPTS) {
-            Log.e(TAG, "重连失败，已达最大重试次数: " + MAX_RECONNECT_ATTEMPTS);
+            PaymentLog.e(TAG, "重连失败，已达最大重试次数: " + MAX_RECONNECT_ATTEMPTS);
             reconnectCount.set(0);
             // 重置后继续尝试（支付系统不应彻底放弃连接）
             workHandler.sendEmptyMessageDelayed(MSG_RECONNECT, RECONNECT_BASE_DELAY_MS * MAX_RECONNECT_ATTEMPTS);
@@ -346,7 +345,7 @@ public class PayLyyManager {
         }
 
         long delay = RECONNECT_BASE_DELAY_MS * count;
-        Log.i(TAG, "准备第 " + count + " 次重连，延迟 " + delay + "ms");
+        PaymentLog.i(TAG, "准备第 " + count + " 次重连，延迟 " + delay + "ms");
         workHandler.sendEmptyMessageDelayed(MSG_RECONNECT, delay);
     }
 
@@ -358,7 +357,7 @@ public class PayLyyManager {
                     try {
                         su.sendMsg(msg + "\r\n");
                     } catch (Exception e) {
-                        Log.e(TAG, "发送消息异常", e);
+                        PaymentLog.e(TAG, "发送消息异常", e);
                     }
                 }
             });
@@ -369,7 +368,7 @@ public class PayLyyManager {
         if (isDestroyed.get()) return;
         int failCount = heartFailNum.incrementAndGet();
         if (failCount > MAX_HEARTBEAT_FAIL) {
-            Log.w(TAG, "心跳连续失败 " + failCount + " 次，触发重连");
+            PaymentLog.w(TAG, "心跳连续失败 " + failCount + " 次，触发重连");
             handleConnectionLost();
         } else {
             LyySocketReqModel req = new LyySocketReqModel("heartbeat");
@@ -385,7 +384,7 @@ public class PayLyyManager {
             String data = LCipherUtil.encryptAES(gson.toJson(model), config.getAppSecret());
             sendMsg(gson.toJson(new LyySocketReqModel(config.getAppId(), data)));
         } catch (Exception e) {
-            Log.e(TAG, "发送指令失败", e);
+            PaymentLog.e(TAG, "发送指令失败", e);
         }
     }
 
@@ -410,10 +409,10 @@ public class PayLyyManager {
             if (TextUtils.isEmpty(action)) return;
             action = action.trim();
 
-            Log.i(TAG, "收到消息: " + action);
+            PaymentLog.i(TAG, "收到消息: " + action);
             handleAction(action, model, dataStr);
         } catch (Exception e) {
-            Log.e(TAG, "解析消息失败", e);
+            PaymentLog.e(TAG, "解析消息失败", e);
         }
     }
 
@@ -468,7 +467,7 @@ public class PayLyyManager {
                 handleCustomParamSetting(model);
                 break;
             default:
-                Log.d(TAG, "未处理的指令: " + action);
+                PaymentLog.d(TAG, "未处理的指令: " + action);
                 break;
         }
     }
@@ -482,7 +481,7 @@ public class PayLyyManager {
     }
 
     private void handleLoginResult(LyySocketModel model, String dataStr) {
-        Log.i(TAG, "登录成功: " + dataStr);
+        PaymentLog.i(TAG, "登录成功: " + dataStr);
         isLogin.set(true);
         if (model.getP() == null) return;
 
@@ -496,7 +495,7 @@ public class PayLyyManager {
         if ("1".equals(d)) {
             String qr = model.getP().getQ();
             notifyListener(l -> l.getBindQrCode(qr));
-            Log.i(TAG, "设备未绑定");
+            PaymentLog.i(TAG, "设备未绑定");
             workHandler.removeMessages(MSG_SETTING_TIMEOUT);
             notifyListener(l -> l.onPayConnectStatus(true));
             sendCycleHeart();
@@ -506,30 +505,32 @@ public class PayLyyManager {
     }
 
     private void handleParamSettingResult() {
-        Log.i(TAG, "仓位数据上传成功");
+        PaymentLog.i(TAG, "仓位数据上传成功");
         workHandler.removeMessages(MSG_SETTING_TIMEOUT);
         notifyListener(l -> l.onPayConnectStatus(true));
         sendLYYCommand(buildUploadProductMsg());
     }
 
     private void handleProductUploadResult(LyySocketModel model) {
-        Log.i(TAG, "商品信息上传成功");
+        PaymentLog.i(TAG, "商品信息上传成功");
         String si = (model.getP() == null) ? "" : model.getP().getSi();
         sendLYYCommand(buildUploadParamProduct(si));
     }
 
     private void handleProductRelationResult() {
-        Log.i(TAG, "商品仓道关系上传成功");
+        PaymentLog.i(TAG, "商品仓道关系上传成功");
         sendCycleHeart();
     }
 
     private void handleBindSuccess() {
+        PaymentLog.i(TAG, "设备绑定成功");
         notifyListener(OnPayListener::onPayBindSuccess);
         sendLYYCommand(buildBindSuccessReply());
         sendLYYCommand(buildParamSetting());
     }
 
     private void handleUnbindSuccess() {
+        PaymentLog.i(TAG, "设备解绑成功");
         notifyListener(OnPayListener::onPayUnbindSuccess);
         sendLYYCommand(buildUnbindSuccessReply());
         sendLYYCommand(buildGetBindQrCode());
@@ -538,31 +539,33 @@ public class PayLyyManager {
     private void handleBindQrCode(LyySocketModel model) {
         if (model.getP() == null) return;
         String qr = model.getP().getD();
+        PaymentLog.i(TAG, "收到绑定二维码: " + qr);
         notifyListener(l -> l.getBindQrCode(qr));
     }
 
     private void handlePayQrCode(LyySocketModel model) {
         String key = model.getK();
         String qrCode = (model.getP() != null) ? model.getP().getD() : null;
+        PaymentLog.i(TAG, "收到支付二维码: key=" + key);
         notifyListener(l -> l.getPayQrCode(key, qrCode));
     }
 
     private void handlePaySuccess(LyySocketModel model) {
         String key = model.getK();
-        Log.i(TAG, "支付成功: key=" + key);
+        PaymentLog.i(TAG, "支付成功: key=" + key);
         notifyListener(l -> l.onPaySuccess(key));
         sendLYYCommand(buildPaySuccessReply(key));
     }
 
     private void handleGameResultResponse(LyySocketModel model) {
         String key = model.getK();
-        Log.i(TAG, "游戏结果已确认: key=" + key);
+        PaymentLog.i(TAG, "游戏结果已确认: key=" + key);
         // 注意：服务端确认了游戏结果，不再错误调用 onPaySuccess
     }
 
     private void handleRefundResponse(LyySocketModel model) {
         String key = model.getK();
-        Log.i(TAG, "退款返回: key=" + key);
+        PaymentLog.i(TAG, "退款返回: key=" + key);
     }
 
     private void handleServerSetting(LyySocketModel model) {
@@ -573,13 +576,13 @@ public class PayLyyManager {
             sendLYYCommand(buildSettingResult(key));
             notifyListener(l -> l.getPayPrice(price));
         } catch (NumberFormatException e) {
-            Log.e(TAG, "解析价格失败", e);
+            PaymentLog.e(TAG, "解析价格失败", e);
         }
     }
 
     private void handleRemotePay(LyySocketModel model) {
         String key = model.getK();
-        Log.i(TAG, "远程支付: key=" + key);
+        PaymentLog.i(TAG, "远程支付: key=" + key);
         sendLYYCommand(buildRemoteResult(key));
         notifyListener(OnPayListener::onRemotePaySuccess);
     }
@@ -599,7 +602,7 @@ public class PayLyyManager {
     // ==================== 指令构建 ====================
 
     private LyySocketModel buildLoginRandom() {
-        Log.i(TAG, "获取登录随机数");
+        PaymentLog.i(TAG, "获取登录随机数");
         LyySocketModel model = new LyySocketModel();
         model.setA("rs");
         LyySocketModel.LyySocketModelP p = model.new LyySocketModelP();
@@ -610,7 +613,7 @@ public class PayLyyManager {
 
     private LyySocketModel buildLogin(String randomStr) {
         if (TextUtils.isEmpty(randomStr)) return null;
-        Log.i(TAG, "发送登录");
+        PaymentLog.i(TAG, "发送登录");
         LyySocketModel model = new LyySocketModel();
         model.setA("l");
         LyySocketModel.LyySocketModelP p = model.new LyySocketModelP();
@@ -624,7 +627,7 @@ public class PayLyyManager {
     }
 
     private LyySocketModel buildParamSetting() {
-        Log.i(TAG, "上传仓位数据");
+        PaymentLog.i(TAG, "上传仓位数据");
         LyySocketModel model = new LyySocketModel();
         model.setA("mbp");
         model.setK(String.valueOf(System.currentTimeMillis()));
@@ -640,7 +643,7 @@ public class PayLyyManager {
     }
 
     private LyySocketModel buildUploadProductMsg() {
-        Log.i(TAG, "上传商品信息");
+        PaymentLog.i(TAG, "上传商品信息");
         LyySocketModel model = new LyySocketModel();
         model.setA("rg");
         model.setK(String.valueOf(System.currentTimeMillis()));
@@ -655,7 +658,7 @@ public class PayLyyManager {
     }
 
     private LyySocketModel buildUploadParamProduct(String productId) {
-        Log.i(TAG, "上传商品和仓道关系");
+        PaymentLog.i(TAG, "上传商品和仓道关系");
         LyySocketModel model = new LyySocketModel();
         model.setA("rp");
         model.setK(String.valueOf(System.currentTimeMillis()));
@@ -770,7 +773,7 @@ public class PayLyyManager {
             String data = LCipherUtil.encryptAES(gson.toJson(model), config.getAppSecret());
             sendMsg(gson.toJson(new LyySocketReqModel(config.getAppId(), data)));
         } catch (Exception e) {
-            Log.e(TAG, "发送自定义参数查询回复失败", e);
+            PaymentLog.e(TAG, "发送自定义参数查询回复失败", e);
         }
     }
 
@@ -783,7 +786,7 @@ public class PayLyyManager {
             String data = LCipherUtil.encryptAES(gson.toJson(model), config.getAppSecret());
             sendMsg(gson.toJson(new LyySocketReqModel(config.getAppId(), data)));
         } catch (Exception e) {
-            Log.e(TAG, "发送自定义参数设置回复失败", e);
+            PaymentLog.e(TAG, "发送自定义参数设置回复失败", e);
         }
     }
 
